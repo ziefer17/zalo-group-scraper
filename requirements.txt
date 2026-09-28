@@ -1,0 +1,12 @@
+# Core dependencies — hoạt động trên cả Windows và Linux
+numpy
+pillow
+pyautogui
+pyperclip
+pytesseract
+pytweening
+PyScreeze
+PyMsgBox
+PyGetWindow
+PyRect
+MouseInfo

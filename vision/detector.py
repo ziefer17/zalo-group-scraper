@@ -8,8 +8,11 @@ from vision.ocr import TextRegion, MergedLine, merge_regions_into_lines
 
 # Các nhãn nút "Trang kế tiếp" trên Facebook
 NEXT_PAGE_LABELS = [
-    "Tiếp theo", "tiếp theo", "Tiếp", "tiếp", "next", "›", ">>",
-    "xem thêm kết quả", "more results", "next page", "trang tiếp"
+    # Tiếng Việt
+    "Tiếp theo", "tiếp theo", "Tiếp", "tiếp",
+    # Tiếng Anh — Google EN locale trên Windows
+    "Next", "next", "›", ">>", "More results",
+    "next page", "Next page",
 ]
 
 # Regex tìm Zalo group URL — xử lý các biến thể OCR bị lỗi:

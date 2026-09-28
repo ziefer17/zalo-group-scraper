@@ -44,6 +44,51 @@ class SearchRunner:
         """Mục đích: Dừng loop từ bên ngoài (nút Stop trên UI)."""
         self.running = False
 
+    def resume(self) -> None:
+        """
+        Mục đích: Tiếp tục từ trang hiện tại sau khi giải captcha.
+        Khác run(): không gọi open_search() — giữ nguyên trang đang mở.
+        Chờ 5s để user kịp click vào Chrome.
+        """
+        print(f"\n{'='*60}")
+        print(f"RESUME — tiếp tục từ trang hiện tại")
+        print(f"Đã có: {self.store.count}/{self.target} URL")
+        print(f"{'='*60}\n")
+
+        if self.store.is_done(self.target):
+            print("✅ Đã đủ target")
+            return
+
+        self.running = True
+
+        # Chờ user switch sang Chrome
+        print("Chờ 5s — click vào Chrome ngay...")
+        import time as _time
+        _time.sleep(5)
+
+        # Tiếp tục loop từ trang hiện tại
+        while self.running and not self.store.is_done(self.target):
+            print(f"\n--- Trang {self.pages_scanned + 1} ---")
+            self._process_page()
+            self.pages_scanned += 1
+            print(self.store.progress(self.target))
+
+            if self.store.is_done(self.target) or not self.running:
+                break
+
+            wait = random.uniform(self.min_wait, self.max_wait)
+            if wait > 0:
+                print(f"Chờ {wait:.1f}s...")
+                import time as _t
+                _t.sleep(wait)
+
+            if not go_to_next_page():
+                print("⚠️  Hết trang — dừng")
+                break
+
+        self.store.save()
+        self._print_summary()
+
     def run(self) -> None:
         """Mục đích: Chạy search loop đến khi đủ target hoặc hết trang."""
         print(f"\n{'='*60}")

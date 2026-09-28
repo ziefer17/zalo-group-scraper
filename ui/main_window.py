@@ -229,6 +229,25 @@ class MainWindow:
                                   command=self._copy_all_urls)
         self.copy_btn.pack(side="right")
 
+        # ── Continue button ───────────────────────────────────
+        cont_frame = tk.Frame(root, bg=BG, pady=4)
+        cont_frame.pack(fill="x", padx=12)
+
+        tk.Frame(root, bg=BORDER, height=1).pack(fill="x")
+
+        self.continue_btn = tk.Button(cont_frame,
+                                      text="CONTINUE  (after captcha — click Chrome within 5s)",
+                                      font=FONT_LABEL,
+                                      bg=BG_INPUT, fg=FG_DIM,
+                                      activebackground="#854d0e",
+                                      activeforeground=FG,
+                                      relief="flat", bd=0,
+                                      padx=12, pady=5,
+                                      cursor="hand2",
+                                      state="disabled",
+                                      command=self._on_continue)
+        self.continue_btn.pack(fill="x")
+
     def _center_window(self):
         self.root.update_idletasks()
         w = self.root.winfo_width()
@@ -317,11 +336,42 @@ class MainWindow:
             self._log("Đang dừng...")
             self.stop_btn.config(state="disabled")
 
+    def _on_continue(self):
+        """
+        Mục đích: Resume từ trang hiện tại sau khi giải captcha.
+        Không search lại — giữ nguyên trang Chrome đang mở.
+        """
+        if not self.runner:
+            self._log("Chưa có session nào — nhấn START trước")
+            return
+
+        self._set_status("running", ACCENT)
+        self._log("Resume sau 5s — click vào Chrome ngay...")
+        self.continue_btn.config(state="disabled")
+        self.start_btn.config(state="disabled")
+        self.stop_btn.config(state="normal", bg=ACCENT_STOP, fg=FG)
+
+        self.runner_thread = threading.Thread(
+            target=self._resume_thread, daemon=True
+        )
+        self.runner_thread.start()
+
+    def _resume_thread(self):
+        """Chạy resume() trong background thread."""
+        try:
+            self.runner.resume()
+        except Exception as e:
+            self.root.after(0, lambda: self._log(f"Lỗi: {e}"))
+        finally:
+            self.root.after(0, self._on_done)
+
     def _on_done(self):
         self._set_status("done", FG_NEW)
         self._log(f"Xong — {self.url_count} links → {self.output_file}")
         self.start_btn.config(state="normal")
         self.stop_btn.config(state="disabled", bg=BG_INPUT, fg=FG_DIM)
+        # Enable Continue — có thể cần resume nếu bị captcha lần sau
+        self.continue_btn.config(state="normal", fg=FG)
 
     def _on_progress(self, count: int, total: int, url: str):
         """Callback từ runner — chạy trong background thread, dùng after() để update UI."""

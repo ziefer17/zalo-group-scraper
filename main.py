@@ -6,11 +6,39 @@
 
 import os
 import sys
+import shutil
 
-if "DISPLAY" not in os.environ:
+if "DISPLAY" not in os.environ and sys.platform != "win32":
     os.environ["DISPLAY"] = ":0"
 
+def _check_tesseract():
+    """Kiểm tra Tesseract đã cài chưa — hiện thông báo rõ nếu chưa."""
+    import pytesseract
+    try:
+        pytesseract.get_tesseract_version()
+        return True
+    except Exception:
+        if sys.platform == "win32":
+            msg = (
+                "Tesseract chưa được cài đặt!\n\n"
+                "Tải tại: https://github.com/UB-Mannheim/tesseract/wiki\n"
+                "Trong installer, tích thêm 'Vietnamese' language data."
+            )
+        else:
+            msg = (
+                "Tesseract chưa được cài đặt!\n\n"
+                "Chạy: sudo pacman -S tesseract tesseract-data-vie tesseract-data-eng"
+            )
+        import tkinter.messagebox as mb
+        import tkinter as tk
+        r = tk.Tk(); r.withdraw()
+        mb.showerror("Thiếu Tesseract", msg)
+        r.destroy()
+        return False
+
 def run_ui():
+    if not _check_tesseract():
+        sys.exit(1)
     from ui.main_window import run
     run()
 

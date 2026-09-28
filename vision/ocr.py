@@ -3,9 +3,25 @@
 # Phương pháp: Grayscale + adaptive threshold để tăng độ tương phản trước khi OCR
 
 import re
+import sys
+import os
 import pytesseract
 from PIL import Image, ImageFilter, ImageEnhance
 from dataclasses import dataclass, field
+
+# Auto-detect Tesseract path trên Windows
+# Linux: tesseract thường trong PATH, không cần set
+# Windows: cài vào C:\Program Files\Tesseract-OCR\ theo mặc định
+if sys.platform == "win32":
+    _possible_paths = [
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+        os.path.join(os.environ.get("LOCALAPPDATA", ""), "Tesseract-OCR", "tesseract.exe"),
+    ]
+    for _path in _possible_paths:
+        if os.path.exists(_path):
+            pytesseract.pytesseract.tesseract_cmd = _path
+            break
 
 
 @dataclass
