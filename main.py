@@ -14,9 +14,26 @@ if "DISPLAY" not in os.environ and sys.platform != "win32":
 def _check_tesseract():
     """Kiểm tra Tesseract đã cài chưa — hiện thông báo rõ nếu chưa."""
     import pytesseract
+    if sys.platform == "win32":
+        possible_paths = [
+            r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+            r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+            os.path.join(
+                os.environ.get("LOCALAPPDATA", ""),
+                "Tesseract-OCR",
+                "tesseract.exe",
+            ),
+        ]
+
+        for path in possible_paths:
+            if os.path.exists(path):
+                pytesseract.pytesseract.tesseract_cmd = path
+                break
+
     try:
         pytesseract.get_tesseract_version()
         return True
+
     except Exception:
         if sys.platform == "win32":
             msg = (
@@ -27,13 +44,18 @@ def _check_tesseract():
         else:
             msg = (
                 "Tesseract chưa được cài đặt!\n\n"
-                "Chạy: sudo pacman -S tesseract tesseract-data-vie tesseract-data-eng"
+                "Chạy: sudo pacman -S tesseract "
+                "tesseract-data-vie tesseract-data-eng"
             )
+
         import tkinter.messagebox as mb
         import tkinter as tk
-        r = tk.Tk(); r.withdraw()
+
+        r = tk.Tk()
+        r.withdraw()
         mb.showerror("Thiếu Tesseract", msg)
         r.destroy()
+
         return False
 
 def run_ui():
