@@ -66,7 +66,7 @@ class MainWindow:
         tk.Label(row1, text="keyword", font=FONT_LABEL,
                  fg=FG_DIM, bg=BG).pack(anchor="w")
 
-        self.keyword_var = tk.StringVar(value="spa")
+        self.keyword_var = tk.StringVar(value="")
         kw_entry = tk.Entry(row1, textvariable=self.keyword_var,
                             font=FONT_MONO, bg=BG_INPUT, fg=FG,
                             insertbackground=FG, relief="flat",
@@ -132,6 +132,46 @@ class MainWindow:
                               activebackground=ACCENT,
                               command=self._update_wait_label)
         max_slider.pack(side="left", fill="x", expand=True)
+
+        tk.Frame(root, bg=BORDER, height=1).pack(fill="x", pady=4)
+
+        # ── Break time (anti-captcha) ────────────────────────
+        row4 = tk.Frame(root, bg=BG, pady=4)
+        row4.pack(fill="x", padx=12)
+
+        break_hdr = tk.Frame(row4, bg=BG)
+        break_hdr.pack(fill="x")
+        tk.Label(break_hdr, text="break every 7 pages (anti-captcha)",
+                 font=FONT_LABEL, fg=FG_DIM, bg=BG).pack(side="left")
+        self.break_label = tk.Label(break_hdr, text="5 – 6 min",
+                                    font=FONT_LABEL, fg=FG, bg=BG)
+        self.break_label.pack(side="right")
+
+        break_slider_frame = tk.Frame(row4, bg=BG)
+        break_slider_frame.pack(fill="x", pady=(4, 0))
+
+        self.break_min = tk.DoubleVar(value=5)
+        self.break_max = tk.DoubleVar(value=6)
+
+        tk.Label(break_slider_frame, text="min", font=FONT_LABEL,
+                 fg=FG_DIM, bg=BG, width=3).pack(side="left")
+        tk.Scale(break_slider_frame, from_=1, to=30,
+                 variable=self.break_min, orient="horizontal",
+                 resolution=1, showvalue=False,
+                 bg=BG, fg=FG, troughcolor=BG_INPUT,
+                 highlightthickness=0, bd=0,
+                 activebackground=ACCENT,
+                 command=self._update_break_label).pack(side="left", fill="x", expand=True)
+
+        tk.Label(break_slider_frame, text="max", font=FONT_LABEL,
+                 fg=FG_DIM, bg=BG, width=3).pack(side="left")
+        tk.Scale(break_slider_frame, from_=1, to=30,
+                 variable=self.break_max, orient="horizontal",
+                 resolution=1, showvalue=False,
+                 bg=BG, fg=FG, troughcolor=BG_INPUT,
+                 highlightthickness=0, bd=0,
+                 activebackground=ACCENT,
+                 command=self._update_break_label).pack(side="left", fill="x", expand=True)
 
         tk.Frame(root, bg=BORDER, height=1).pack(fill="x", pady=4)
 
@@ -261,11 +301,18 @@ class MainWindow:
     def _update_wait_label(self, _=None):
         mn = self.wait_min.get()
         mx = self.wait_max.get()
-        # Đảm bảo min <= max
         if mn > mx:
             self.wait_max.set(mn)
             mx = mn
         self.wait_label.config(text=f"{mn:.1f} – {mx:.1f}s")
+
+    def _update_break_label(self, _=None):
+        mn = self.break_min.get()
+        mx = self.break_max.get()
+        if mn > mx:
+            self.break_max.set(mn)
+            mx = mn
+        self.break_label.config(text=f"{mn:.0f} – {mx:.0f} min")
 
     def _choose_output_file(self, _=None):
         path = filedialog.asksaveasfilename(
@@ -313,7 +360,10 @@ class MainWindow:
             output_file=self.output_file,
             min_wait=self.wait_min.get(),
             max_wait=self.wait_max.get(),
+            break_min=self.break_min.get() * 60,
+            break_max=self.break_max.get() * 60,
             on_progress=self._on_progress,
+            on_break=self._on_break,
         )
 
         self.runner_thread = threading.Thread(
@@ -374,9 +424,19 @@ class MainWindow:
         self.continue_btn.config(state="normal", fg=FG)
 
     def _on_progress(self, count: int, total: int, url: str):
-        """Callback từ runner — chạy trong background thread, dùng after() để update UI."""
+        """Callback từ runner — chạy trong background thread."""
         self.url_count = count
         self.root.after(0, lambda: self._update_ui(count, total, url))
+
+    def _on_break(self, remaining: int):
+        """Callback countdown nghỉ anti-captcha — chạy trong background thread."""
+        if remaining == 0:
+            self.root.after(0, lambda: self._log("Tiếp tục..."))
+        else:
+            mins = remaining // 60
+            secs = remaining % 60
+            msg = f"⏸️  Nghỉ anti-captcha: {mins}:{secs:02d}"
+            self.root.after(0, lambda m=msg: self._log(m))
 
     def _update_ui(self, count: int, total: int, url: str):
         self.count_label.config(text=str(count))

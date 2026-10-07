@@ -16,6 +16,12 @@ from storage.results import ResultStore
 TARGET_MIN = 10
 TARGET_MAX = 99999
 
+# Sau bao nhiêu trang thì nghỉ dài để tránh captcha
+PAGES_BEFORE_BREAK = 7
+# Default break time range (giây)
+BREAK_MIN_DEFAULT = 5 * 60   # 5 phút
+BREAK_MAX_DEFAULT = 6 * 60   # 6 phút
+
 
 class SearchRunner:
     def __init__(
@@ -25,17 +31,23 @@ class SearchRunner:
         output_file: Path = Path("zalo_groups.txt"),
         min_wait: float = 0.0,
         max_wait: float = 5.0,
-        on_progress=None,  # callback(count, total, url) để update UI
+        break_min: float = BREAK_MIN_DEFAULT,
+        break_max: float = BREAK_MAX_DEFAULT,
+        on_progress=None,
+        on_break=None,   # callback(remaining_seconds) để update UI countdown
     ):
         if not (TARGET_MIN <= target <= TARGET_MAX):
             raise ValueError(f"Target phải từ {TARGET_MIN} đến {TARGET_MAX}")
 
-        self.keyword    = keyword
-        self.target     = target
-        self.store      = ResultStore(output_file)
-        self.min_wait   = min_wait
-        self.max_wait   = max_wait
+        self.keyword   = keyword
+        self.target    = target
+        self.store     = ResultStore(output_file)
+        self.min_wait  = min_wait
+        self.max_wait  = max_wait
+        self.break_min = break_min
+        self.break_max = break_max
         self.on_progress = on_progress
+        self.on_break    = on_break
 
         self.pages_scanned = 0
         self.running       = True  # set False để dừng giữa chừng
@@ -76,6 +88,13 @@ class SearchRunner:
             if self.store.is_done(self.target) or not self.running:
                 break
 
+            if self.pages_scanned % PAGES_BEFORE_BREAK == 0:
+                break_secs = random.uniform(self.break_min, self.break_max)
+                print(f"\n⏸️  Nghỉ {break_secs/60:.1f} phút để tránh captcha...")
+                self._do_break(break_secs)
+                if not self.running:
+                    break
+
             wait = random.uniform(self.min_wait, self.max_wait)
             if wait > 0:
                 print(f"Chờ {wait:.1f}s...")
@@ -115,7 +134,15 @@ class SearchRunner:
             if self.store.is_done(self.target) or not self.running:
                 break
 
-            # Random wait giữa các trang
+            # Anti-captcha: nghỉ dài sau mỗi PAGES_BEFORE_BREAK trang
+            if self.pages_scanned % PAGES_BEFORE_BREAK == 0:
+                break_secs = random.uniform(self.break_min, self.break_max)
+                print(f"\n⏸️  Nghỉ {break_secs/60:.1f} phút để tránh captcha...")
+                self._do_break(break_secs)
+                if not self.running:
+                    break
+
+            # Random wait ngắn giữa các trang
             wait = random.uniform(self.min_wait, self.max_wait)
             if wait > 0:
                 print(f"Chờ {wait:.1f}s trước trang tiếp...")
@@ -127,6 +154,20 @@ class SearchRunner:
 
         self.store.save()
         self._print_summary()
+
+    def _do_break(self, seconds: float) -> None:
+        """
+        Mục đích: Nghỉ dài để tránh captcha — đếm ngược từng giây.
+        Gọi on_break(remaining) mỗi giây để UI hiện countdown.
+        """
+        remaining = int(seconds)
+        while remaining > 0 and self.running:
+            if self.on_break:
+                self.on_break(remaining)
+            time.sleep(1)
+            remaining -= 1
+        if self.on_break:
+            self.on_break(0)
 
     def _process_page(self) -> None:
         """

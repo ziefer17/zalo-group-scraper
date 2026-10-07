@@ -15,13 +15,19 @@ PAGE_LOAD_TIMEOUT = 10
 
 def open_url(url: str) -> bool:
     """
-    Mục đích: Mở URL trong Chrome bằng Ctrl+L → gõ URL → Enter.
+    Mục đích: Mở URL trong Chrome bằng Ctrl+L → paste URL → Enter.
+    Phương pháp: Dùng pyperclip.copy() + Ctrl+V thay vì typewrite()
+    Lý do: typewrite() bỏ qua ký tự Unicode (tiếng Việt, dấu nháy kép trong query)
     """
+    import pyperclip
+    pyperclip.copy(url)
+    time.sleep(0.1)
+
     pyautogui.hotkey("ctrl", "l")
     time.sleep(0.3)
     pyautogui.hotkey("ctrl", "a")
     time.sleep(0.1)
-    pyautogui.typewrite(url, interval=0.02)
+    pyautogui.hotkey("ctrl", "v")
     time.sleep(0.2)
     pyautogui.press("enter")
     print(f"[browser] Mở URL: '{url}'")
